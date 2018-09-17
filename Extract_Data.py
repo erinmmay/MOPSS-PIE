@@ -13,7 +13,7 @@ def Gaus_2d((Xa,Ya),x0,y0,fwx,fwy,bgc,amp):
     yterm=((Ya-y0)**2.)/(2.*fwy**2.)
     return (amp*(np.exp(-1.0*(xterm+yterm)))+bgc).ravel()
 
-def Extract_Data(path,savepath,n_obj,fw_g,ap,ver):
+def Extract_Data(path,savepath,n_obj,fw_g,ap,ver,ex_all):
     locations=np.empty([n_obj,2])*np.nan
     chips=np.empty([n_obj])*np.nan
     for o in range(0,n_obj):
@@ -39,10 +39,10 @@ def Extract_Data(path,savepath,n_obj,fw_g,ap,ver):
     obs_times=np.array([])
     exp_times=np.array([])
     
-    data_c1=np.empty([2040,2040,n_exp])*np.nan
-    data_c2=np.empty([2040,2040,n_exp])*np.nan
-    data_c3=np.empty([2040,2040,n_exp])*np.nan
-    data_c4=np.empty([2040,2040,n_exp])*np.nan
+    data_c1=np.empty([2048,2048,n_exp])*np.nan
+    data_c2=np.empty([2048,2048,n_exp])*np.nan
+    data_c3=np.empty([2048,2048,n_exp])*np.nan
+    data_c4=np.empty([2048,2048,n_exp])*np.nan
     n_exp=0
     for file in os.listdir(path):
         if file.endswith('.fits.gz'):
@@ -50,22 +50,33 @@ def Extract_Data(path,savepath,n_obj,fw_g,ap,ver):
             root=file.split('c')[0]
             chip=int(file.split('c')[1].split('.')[0])
             if chip==1:
-                data_c1[:,:,int(n_exp)]=(fits.open(path+file))[0].data
                 n_exp+=0.25
+                if ex_all==False:
+                    continue
+                data_c1[:,:,int(n_exp)]=(fits.open(path+file))[0].data
             if chip==2:
+                n_exp+=0.25
                 data_c2[:,:,int(n_exp)]=(fits.open(path+file))[0].data
                 head=fits.open(path+file)[0].header
                 filt=np.append(filt,head['FILTER'])
-                obs_times=np.append(obs_times,head['DATE'])
+                obs_times=np.append(obs_times,head['DATE-OBS']+'T'+head['UT-TIME'])
                 exp_times=np.append(exp_times,head['EXPTIME'])
-                n_exp+=0.25
+                #n_exp+=0.25
+                print int(n_exp), head['FILTER'], head['DATE-OBS']+'T'+head['UT-TIME'], head['EXPTIME']
             if chip==3:
+                n_exp+=0.25
+                if ex_all==False:
+                    continue
                 data_c3[:,:,int(n_exp)]=(fits.open(path+file))[0].data
-                n_exp+=0.25
+                #n_exp+=0.25
             if chip==4:
-                data_c4[:,:,int(n_exp)]=(fits.open(path+file))[0].data
                 n_exp+=0.25
+                if ex_all==False:
+                    continue
+                data_c4[:,:,int(n_exp)]=(fits.open(path+file))[0].data
+                #n_exp+=0.25
 
+    #np.savez(savepath+'EXTRACTED_IMAGES.npz',chip1=data_c1,chip2=data_c2, chip3=data_c3,chip4=data_c4)
     Fit_Params=np.empty([n_obj,int(n_exp),6])*np.nan
     counts=np.empty([n_obj,int(n_exp)])*np.nan
     ### FIT GAUSSIANS ###
@@ -130,45 +141,50 @@ def Extract_Data(path,savepath,n_obj,fw_g,ap,ver):
             
                  
             if ver==True:
-                fig,ax=plt.subplots(3,3,figsize=(9,9))#,sharex='col', sharey='row')
-                fig.subplots_adjust(wspace=0, hspace=0)
-                for i in range(0,ax.shape[0]):
-                    for j in range(0,ax.shape[1]):
-                        if i==0 or i==1:
-                            if j!=0:
-                                ax[i,j].set_xticks([])
-                                ax[i,j].set_yticks([])
-                        if i==2:
-                            if j!=0:
-                                ax[i,j].set_yticks([])
-                                
-                l=data_t.shape[0]/2+fw*ap*1.5
-                r=data_t.shape[0]/2-fw*ap*1.5
-                tp=data_t.shape[0]/2-fw*ap*1.5
-                b=data_t.shape[0]/2+fw*ap*1.5
-                for i in range(0,ax.shape[0]):                
-                    for j in range(0,ax.shape[1]):
-                        ax[i,j].set_ylim(tp,b)
-                        ax[i,j].set_xlim(l,r)
-                            
+                if t%10==0:
+                    fig,ax=plt.subplots(3,3,figsize=(9,9))#,sharex='col', sharey='row')
+                    fig.subplots_adjust(wspace=0, hspace=0)
+                    for i in range(0,ax.shape[0]):
+                        for j in range(0,ax.shape[1]):
+                            if i==0 or i==1:
+                                if j!=0:
+                                    ax[i,j].set_xticks([])
+                                    ax[i,j].set_yticks([])
+                            if i==2:
+                                if j!=0:
+                                    ax[i,j].set_yticks([])
 
-                ax[0,0].imshow(data_t,cmap=plt.cm.hot,vmin=np.nanmedian(data_t)*0.98,vmax=np.nanmedian(data_t)*1.2)
-                ax[0,1].imshow(Z_guess,cmap=plt.cm.hot,vmin=np.nanmedian(data_t)*0.98,vmax=np.nanmedian(data_t)*1.2)
-                ax[0,2].imshow(residuals_g,cmap=plt.cm.hot,vmin=np.nanmin(residuals_g),vmax=np.nanmax(residuals_g))
+                    l=data_t.shape[0]/2+fw*ap*2.5
+                    r=data_t.shape[0]/2-fw*ap*2.5
+                    tp=data_t.shape[0]/2-fw*ap*2.5
+                    b=data_t.shape[0]/2+fw*ap*2.5
+                    for i in range(0,ax.shape[0]):                
+                        for j in range(0,ax.shape[1]):
+                            ax[i,j].set_ylim(tp,b)
+                            ax[i,j].set_xlim(l,r)
 
-                ax[1,0].imshow(data_t-Fit_Params[o,t,4],cmap=plt.cm.hot,vmin=0.0,vmax=np.nanmedian(data_t)*1.2)
-                ax[1,0].contour(APR,levels=[1.0],colors='white',linewidths=2.5)
-                ax[1,1].imshow(Z_fit-Fit_Params[o,t,4],cmap=plt.cm.hot,vmin=0.0,vmax=np.nanmedian(data_t)*1.2)
-                ax[1,1].contour(APR,levels=[1.0],colors='white',linewidths=2.5)
-                ax[1,2].imshow(residuals_f,cmap=plt.cm.hot,vmin=np.nanmin(residuals_f),vmax=np.nanmax(residuals_f))        
-                
-                ax[2,0].imshow(data_t*APR_MASK-Fit_Params[o,t,4],cmap=plt.cm.hot,vmin=0.0,vmax=np.nanmedian(data_t)*1.2)
-                #ax[0].contour(X_matt,Y_matt,APR_t,levels=[1.0],colors='white',linewidths=2.5)
-                ax[2,1].imshow(Z_fit*APR_MASK-Fit_Params[o,t,4],cmap=plt.cm.hot,vmin=0.0,vmax=np.nanmedian(data_t)*1.2)
-                #ax[1].contour(X_matt,Y_matt,APR_t,levels=[1.0],colors='white',linewidths=2.5)
-                ax[2,2].imshow(residuals_f*APR_MASK,cmap=plt.cm.hot,vmin=np.nanmin(residuals_f),vmax=np.nanmax(residuals_f))
-            
-                
-                plt.figtext(0.14,0.14,str(np.round(counts[o,t],2)),fontsize=20,color='darkred')
 
-                plt.show(block=False)
+                    colors=plt.cm.PuRd_r
+                    ax[0,0].imshow(data_t,cmap=colors,vmin=np.nanmedian(data_t)*0.98,vmax=np.nanmedian(data_t)*1.2)
+                    ax[0,1].imshow(Z_guess,cmap=colors,vmin=np.nanmedian(data_t)*0.98,vmax=np.nanmedian(data_t)*1.2)
+                    ax[0,2].imshow(residuals_g,cmap=colors,vmin=np.nanmin(residuals_g),vmax=np.nanmax(residuals_g))
+
+                    ax[1,0].imshow(data_t-Fit_Params[o,t,4],cmap=colors,vmin=0.0,vmax=np.nanmedian(data_t)*1.2)
+                    ax[1,0].contour(APR,levels=[1.0],colors='white',linewidths=2.5)
+                    ax[1,1].imshow(Z_fit-Fit_Params[o,t,4],cmap=colors,vmin=0.0,vmax=np.nanmedian(data_t)*1.2)
+                    ax[1,1].contour(APR,levels=[1.0],colors='white',linewidths=2.5)
+                    ax[1,2].imshow(residuals_f,cmap=colors,vmin=np.nanmin(residuals_f),vmax=np.nanmax(residuals_f))        
+
+                    ax[2,0].imshow(data_t*APR_MASK-Fit_Params[o,t,4],cmap=colors,vmin=0.0,vmax=np.nanmedian(data_t)*1.2)
+                    #ax[0].contour(X_matt,Y_matt,APR_t,levels=[1.0],colors='white',linewidths=2.5)
+                    ax[2,1].imshow(Z_fit*APR_MASK-Fit_Params[o,t,4],cmap=colors,vmin=0.0,vmax=np.nanmedian(data_t)*1.2)
+                    #ax[1].contour(X_matt,Y_matt,APR_t,levels=[1.0],colors='white',linewidths=2.5)
+                    ax[2,2].imshow(residuals_f*APR_MASK,cmap=colors,vmin=np.nanmin(residuals_f),vmax=np.nanmax(residuals_f))
+
+
+                    plt.figtext(0.14,0.14,str(np.round(counts[o,t],2)),fontsize=20,color='darkred')
+
+                    plt.show(block=False)
+
+        np.savez(savepath+'Obj_'+str(int(o))+'_Extracted.npz',
+                 params=Fit_Params[o,:,:],counts=counts[o,:], filters=filt, obs_times=obs_times,exp_times=exp_times)
