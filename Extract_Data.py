@@ -22,7 +22,7 @@ def Extract_Data(path,savepath,n_obj,fw_g,ap,ver):
             locations[0,:]=l['coords']
             chips[0]=l['chip']
         else:
-            l=np.load(savepath+'LOCATION_'+str(int(obj))+'npz')
+            l=np.load(savepath+'LOCATION_'+str(int(o))+'.npz')
             locations[o,:]=l['coords']
             chips[o]=l['chip']
      
@@ -97,6 +97,19 @@ def Extract_Data(path,savepath,n_obj,fw_g,ap,ver):
             ################### FITTING 2D GAUSSIAN ##############
             p0=np.array([xcent,ycent,fw,fw,bg,A])
             Fit_Params[o,t,:],fit_cov=curve_fit(Gaus_2d,(X_mat,Y_mat),data_t.ravel(),p0=p0)
+            x_f=np.int(Fit_Params[o,t,0])
+            y_f=np.int(Fit_Params[o,t,1])
+            sigx=np.int(Fit_Params[o,t,2])
+            sigy=np.int(Fit_Params[o,t,3])
+            bg_f=np.int(Fit_Params[o,t,4])
+            ap_f=np.int(Fit_Params[o,t,5])
+            if ver==True:
+                if t%10==0:
+                    print '------------------------------------------------------------------------'
+                    print '         X    Y    sX    sY    BG       A'
+                    print 'GUESS: ', np.int(xcent), ' ',np.int(ycent),' ',np.int(fw),' ',np.int(fw),' ',np.int(bg), ' ',np.int(A)
+                    print '  FIT: ', x_f, ' ',y_f,' ', sigx,' ', sigy, ' ',bg_f, ' ',ap_f
+                    print '------------------------------------------------------------------------'
             
             Z_fit=(Gaus_2d((X_mat,Y_mat),*Fit_Params[o,t,:])).reshape(data_t.shape[0],data_t.shape[1])
             
@@ -115,7 +128,6 @@ def Extract_Data(path,savepath,n_obj,fw_g,ap,ver):
             
             counts[o,t]=np.nansum((data_t*APR_MASK)-Fit_Params[o,t,4])
             
-            print data_t.shape[1]/2.0+fw*ap*2.0,data_t.shape[1]/2.0-fw*ap*2.0
                  
             if ver==True:
                 fig,ax=plt.subplots(3,3,figsize=(9,9))#,sharex='col', sharey='row')
